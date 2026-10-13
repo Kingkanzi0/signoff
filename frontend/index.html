@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signoff · milestone escrow judged by GenLayer validators</title>
+<meta name="description" content="Project: Signoff. Lock GEN against a checklist. GenLayer validators review the deliverable, every MET must quote the page, and funds release only when all requirements are met.">
+<meta name="theme-color" content="#0f0d16">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23132a22'/%3E%3Cpath d='M17 33l10 10 20-22' fill='none' stroke='%2336e39a' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+
+/* Arcade cabinet: one tall well, FALSE bin left, TRUE bin right, cards fall from the top. */
+:root {
+  color-scheme: dark;
+  --ink: #0f0d16;
+  --ink-2: #17141f;
+  --ink-3: #221e2d;
+  --line: #2f2a3c;
+  --fg: #f3f0fa;
+  --soft: #a59fb6;
+  --mute: #6d6680;
+  --true: #36e39a;
+  --true-ink: #062818;
+  --false: #ff5d6c;
+  --false-ink: #2c060b;
+  --gold: #ffd23f;
+  --gold-ink: #2a2000;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 14px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font: 500 15px/1.45 var(--display); color: var(--fg); background: var(--ink);
+  background-image: radial-gradient(circle at 50% -20%, #2a2140 0%, transparent 55%),
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: auto, 32px 32px, 32px 32px;
+  overflow-x: hidden; -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--gold); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* top bar */
+.top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: rgba(15,13,22,.85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); margin-right: auto; }
+.logo svg { width: 32px; height: 32px; }
+.logo b { font: 800 22px/1 var(--display); letter-spacing: .5px; }
+.logo b span { color: var(--gold); }
+@media (max-width: 480px) {
+  .top { gap: 6px; padding-inline: 12px; }
+  .top .btn.sm { padding-inline: 10px; }
+  #netLabel { display: none; }
+  .top:has(#curateBtn:not([hidden])) .logo b { display: none; }   /* owner on a phone: icon only */
+}
+@media (max-width: 380px) {
+  .logo b { display: none; }
+}
+.chip { font: 700 12px/1 var(--mono); color: var(--soft); border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; white-space: nowrap; }
+.chip::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--true); margin-right: 6px; vertical-align: 1px; }
+.btn { border: 0; border-radius: 12px; padding: 11px 16px; font-weight: 800; background: var(--gold); color: var(--gold-ink); white-space: nowrap; }
+.btn:hover { filter: brightness(1.07); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: var(--ink-3); color: var(--fg); border: 1px solid var(--line); }
+.btn.true { background: var(--true); color: var(--true-ink); }
+.btn.false { background: var(--false); color: var(--false-ink); }
+.btn.big { font-size: 18px; padding: 15px 22px; border-radius: 16px; }
+.btn.sm { padding: 7px 11px; font-size: 13px; border-radius: 10px; }
+
+.screen { max-width: 1100px; margin: 0 auto; padding: 18px 16px 40px; }
+[hidden] { display: none !important; }
+
+/* menu */
+.menu { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.hero { background: linear-gradient(160deg, #241c38, #15121e 70%); border: 1px solid var(--line); border-radius: 22px; padding: 26px; position: relative; overflow: hidden; }
+.hero h1 { margin: 0 0 8px; font: 800 clamp(40px, 7vw, 76px)/.92 var(--display); letter-spacing: -1.5px; }
+.hero h1 .t { color: var(--true); } .hero h1 .f { color: var(--false); }
+.hero p { color: var(--soft); font-size: 17px; max-width: 46ch; margin: 0 0 18px; }
+.modes { display: flex; gap: 10px; flex-wrap: wrap; }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 22px; }
+.how div { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 13.5px; color: var(--soft); }
+.how b { display: block; color: var(--fg); font-size: 15px; margin-bottom: 2px; }
+.req { color: var(--gold); font-weight: 600; font-size: 12px; }
+.cur-list { max-height: 46vh; overflow: auto; display: grid; gap: 6px; }
+.cur-list label { display: grid; grid-template-columns: 20px 44px 70px minmax(0,1fr); gap: 8px; align-items: center; background: var(--ink-3); border-radius: 10px; padding: 8px 10px; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+.cur-list .cid { font: 700 12px var(--mono); color: var(--soft); }
+.cur-list .csec { font: 700 11px var(--mono); text-transform: uppercase; }
+.cur-list .csec.genlayer { color: var(--gold); } .cur-list .csec.world { color: var(--true); }
+.cur-list .ret { opacity: .5; text-decoration: line-through; }
+.sections { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sec { border-radius: 18px; padding: 16px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sec-btns { margin-top: auto; }
+.sections + .daily-note { margin-top: 14px; }
+.sec.world { background: linear-gradient(160deg, rgba(54,227,154,.12), rgba(255,255,255,.02)); }
+.sec.gl { background: linear-gradient(160deg, rgba(255,210,63,.14), rgba(255,255,255,.02)); }
+.sec-top { display: flex; gap: 12px; align-items: center; }
+.sec-top b { display: block; font: 800 22px/1.1 var(--display); }
+.sec-top small { color: var(--soft); font-size: 13px; }
+.sec-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 24px; background: rgba(255,255,255,.06); flex: none; }
+.gl-ic { font: 800 15px var(--mono); color: var(--gold-ink); background: var(--gold); }
+.sec-n { margin: 0; color: var(--soft); font-size: 13.5px; }
+.sec-n b { color: var(--fg); font-size: 16px; }
+.sec-n .wait { display: block; color: var(--gold); font-size: 12.5px; margin-top: 2px; }
+.sec-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { flex: 1; border: 1px solid var(--line); background: var(--ink-3); color: var(--soft); border-radius: 10px; padding: 8px 10px; font-weight: 800; }
+.tabs button[aria-pressed="true"] { background: var(--fg); color: var(--ink); border-color: var(--fg); }
+.daily-note { margin-top: 14px; font-size: 13.5px; color: var(--soft); }
+.panel { background: var(--ink-2); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.panel h2 { margin: 0; font: 800 20px/1.1 var(--display); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel h2 small { font: 600 12px var(--mono); color: var(--mute); }
+.lb { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lb li { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 8px; align-items: center; background: var(--ink-3); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.lb li .rk { font: 700 13px var(--mono); color: var(--gold); }
+.lb li .who { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.lb li.me { outline: 1px solid var(--gold); }
+.empty, .lb li.empty { display: block; background: none; color: var(--soft); font-size: 14px; padding: 6px 2px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.stat { background: var(--ink-3); border-radius: 12px; padding: 10px; text-align: center; }
+.stat b { display: block; font: 700 20px var(--mono); }
+.stat small { color: var(--mute); font-size: 12px; }
+
+/* game */
+.game { display: grid; grid-template-rows: auto 1fr auto; height: calc(100dvh - 58px); max-width: 560px; margin: 0 auto; padding: 10px 12px 12px; gap: 10px; }
+.hud { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+.hud div { background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 7px 8px; text-align: center; }
+.hud small { display: block; font-size: 11px; color: var(--mute); letter-spacing: .06em; text-transform: uppercase; }
+.hud b { font: 700 20px/1.1 var(--mono); }
+.hud .mult b { color: var(--gold); }
+.well { position: relative; border-radius: 20px; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(180deg, #120f1b, #191524); touch-action: none; user-select: none; min-height: 360px; }
+.lane-hint { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; }
+.lane-hint div { display: flex; align-items: flex-start; justify-content: center; padding-top: 14px; font: 800 13px var(--mono); letter-spacing: .12em; opacity: .35; }
+.lane-hint .lf { color: var(--false); background: linear-gradient(90deg, rgba(255,93,108,.08), transparent); }
+.lane-hint .lt { color: var(--true); background: linear-gradient(270deg, rgba(54,227,154,.08), transparent); }
+.card {
+  position: absolute; left: 50%; top: 0; width: min(86%, 400px); transform: translate(-50%, 0);
+  background: #fbf7ec; color: #1a1622; border-radius: 16px; padding: 16px 18px 14px; box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 3px rgba(255,210,63,.0);
+  font: 700 clamp(17px, 4.6vw, 21px)/1.25 var(--display); will-change: transform; z-index: 3;
+}
+.card .tag { display: flex; justify-content: space-between; font: 700 11px var(--mono); color: #7a7189; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+.card.lean-f { box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 4px var(--false); }
+.card.lean-t { box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 0 4px var(--true); }
+.card.go-f { transition: transform .22s ease-in, opacity .22s; transform: translate(-150%, var(--y)) rotate(-14deg) !important; opacity: 0; }
+.card.go-t { transition: transform .22s ease-in, opacity .22s; transform: translate(50%, var(--y)) rotate(14deg) !important; opacity: 0; }
+.cracks { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column-reverse; z-index: 2; }
+.crack { height: var(--row); margin: 2px 6px 0; border-radius: 8px; background: repeating-linear-gradient(135deg, #3a1520 0 10px, #2a0f17 10px 20px); border: 1px solid #5a2030; animation: pop .25s ease-out; }
+@keyframes pop { from { transform: scaleY(.2); opacity: 0; } }
+.danger { position: absolute; left: 0; right: 0; height: 2px; background: repeating-linear-gradient(90deg, var(--false) 0 10px, transparent 10px 18px); opacity: .55; z-index: 1; }
+.float { position: absolute; left: 50%; transform: translateX(-50%); font: 800 26px var(--mono); z-index: 5; pointer-events: none; animation: rise .9s ease-out forwards; white-space: nowrap; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+@keyframes rise { to { transform: translate(-50%, -70px); opacity: 0; } }
+.flash-ok { animation: fok .35s; } .flash-bad { animation: fbad .45s; }
+@keyframes fok { 0% { box-shadow: inset 0 0 0 0 rgba(54,227,154,.0); } 30% { box-shadow: inset 0 0 0 6px rgba(54,227,154,.7); } }
+@keyframes fbad { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(4px); } }
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.controls .btn { font-size: 20px; padding: 16px 8px; border-radius: 16px; }
+.controls .pause { background: var(--ink-3); color: var(--soft); border: 1px solid var(--line); padding: 0 16px; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(15,13,22,.72); z-index: 8; text-align: center; padding: 20px; }
+.overlay b { display: block; font: 800 34px var(--display); margin-bottom: 6px; }
+.overlay p { margin: 0 0 14px; color: var(--soft); }
+.reveal { position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); z-index: 6; background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; font-size: 14px; width: min(88%, 380px); text-align: center; animation: rise2 1.6s ease-out forwards; }
+@keyframes rise2 { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* results */
+.results { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+.big-score { text-align: center; padding: 22px; background: linear-gradient(160deg, #241c38, #15121e 70%); border: 1px solid var(--line); border-radius: 22px; }
+.big-score small { color: var(--soft); font-size: 14px; }
+.big-score b { display: block; font: 700 clamp(48px, 12vw, 84px)/1 var(--mono); color: var(--gold); margin: 6px 0; }
+.big-score .row { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; color: var(--soft); font-size: 14px; }
+.big-score .row b { display: inline; font-size: 16px; color: var(--fg); margin: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.answers { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.answers li { background: var(--ink-2); border: 1px solid var(--line); border-left: 5px solid var(--true); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 10px; align-items: center; }
+.answers li.bad { border-left-color: var(--false); }
+.answers .txt { font-weight: 700; }
+.answers .meta { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--soft); }
+.pill { font: 700 11px var(--mono); padding: 3px 7px; border-radius: 6px; }
+.pill.t { background: rgba(54,227,154,.15); color: var(--true); } .pill.f { background: rgba(255,93,108,.15); color: var(--false); }
+
+/* dialogs, toasts, tray (shared with Ninety's tracker) */
+dialog { border: 1px solid var(--line); border-radius: 18px; padding: 0; width: min(560px, calc(100vw - 24px)); background: var(--ink-2); color: var(--fg); }
+dialog::backdrop { background: rgba(0,0,0,.65); }
+.dlg-head { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+.dlg-head h3 { margin: 0; font: 800 22px var(--display); }
+.dlg-body { padding: 16px 18px 18px; display: grid; gap: 12px; }
+.close-x { background: none; border: 0; color: var(--soft); font-size: 26px; line-height: 1; }
+label { display: block; font-size: 13.5px; font-weight: 700; margin: 0 0 4px; }
+input[type="text"], input[type="url"], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--ink); color: var(--fg); }
+textarea { min-height: 120px; resize: vertical; }
+input:focus, textarea:focus { border-color: var(--gold); outline: none; }
+.hint { font-size: 13px; color: var(--soft); margin: 0; }
+.wallet-list { display: grid; gap: 8px; }
+.wallet-opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--ink-3); font-weight: 800; text-align: left; }
+.wallet-opt:hover { border-color: var(--gold); }
+.wallet-opt img { border-radius: 6px; }
+.wallet-dot { width: 28px; height: 28px; border-radius: 6px; background: var(--true); }
+.toasts { position: fixed; right: 12px; bottom: 12px; display: grid; gap: 8px; z-index: 60; max-width: min(420px, calc(100vw - 24px)); }
+.toast { background: var(--ink-3); color: var(--fg); padding: 12px 14px; border-radius: 12px; font-size: 14px; border-left: 4px solid var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+.toast.err { border-left-color: var(--false); } .toast.ok { border-left-color: var(--true); }
+.tray { position: fixed; left: 12px; bottom: 12px; z-index: 55; display: grid; gap: 10px; width: min(360px, calc(100vw - 24px)); }
+.job { background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.45); overflow: hidden; }
+.job-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--ink-3); }
+.job-head b { font: 800 15px/1.2 var(--display); flex: 1; }
+.job-head .clock { font: 600 12px var(--mono); color: var(--soft); }
+.job-head button { background: none; border: 0; color: var(--soft); font-size: 18px; line-height: 1; padding: 0 3px; }
+.steps { list-style: none; margin: 0; padding: 10px 12px 4px; display: grid; gap: 6px; font-size: 13.5px; }
+.steps li { display: flex; gap: 8px; align-items: center; color: var(--mute); }
+.steps li::before { content: ""; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.steps li.done { color: var(--fg); } .steps li.done::before { background: var(--true); border-color: var(--true); }
+.steps li.now { color: var(--fg); font-weight: 700; } .steps li.now::before { border-color: var(--gold); border-top-color: transparent; animation: spin .8s linear infinite; }
+.steps li.bad::before { background: var(--false); border-color: var(--false); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.job-foot { display: flex; justify-content: space-between; gap: 8px; padding: 6px 12px 10px; font-size: 12.5px; color: var(--soft); }
+.job.ok .job-head { background: #123a28; } .job.fail .job-head { background: #45151d; }
+.job.min .steps, .job.min .job-foot { display: none; }
+
+@media (max-width: 820px) {
+  .menu { grid-template-columns: 1fr; }
+  .how { grid-template-columns: 1fr; }
+  .sections { grid-template-columns: 1fr; }
+  .chip { display: none; }
+}
+@media (max-width: 420px) {
+  .logo b { font-size: 19px; }
+  .top .btn { padding: 9px 11px; font-size: 13px; }
+  .hero { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .float, .reveal, .crack, .flash-ok, .flash-bad { animation: none !important; }
+  .card.go-f, .card.go-t { transition: none; }
+  .steps li.now::before { animation: none; }
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 22px 16px 120px; display: grid; gap: 18px; }
+.hero h1 { margin: 0; font: 800 clamp(34px, 6vw, 56px)/1 var(--display); letter-spacing: -1px; }
+.hero h1 span { color: var(--true); }
+.hero p { margin: 10px 0 0; color: var(--soft); max-width: 740px; font-size: 16px; }
+.addr { margin-top: 10px; font: 600 12.5px var(--mono); color: var(--soft); word-break: break-all; }
+.cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+.panel { background: var(--ink-2); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.panel h2 { margin: 0; font: 800 21px var(--display); }
+.panel label, dialog label { font-weight: 700; font-size: 13.5px; color: var(--soft); display: block; margin-bottom: 5px; }
+.panel textarea, .panel input, dialog input { width: 100%; background: var(--ink-3); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.panel textarea { resize: vertical; min-height: 84px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mono { font-family: var(--mono) !important; font-size: 12.5px !important; }
+.jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.job { background: var(--ink-3); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
+.job .row1 { display: flex; gap: 10px; align-items: flex-start; }
+.job .row1 b { font-size: 15.5px; flex: 1; min-width: 0; }
+.job .id { font: 700 12px var(--mono); color: var(--mute); }
+.pill { display: inline-block; font: 800 11.5px var(--mono); letter-spacing: .5px; padding: 3px 8px; border-radius: 7px; }
+.pill.OPEN { background: var(--gold); color: var(--gold-ink); }
+.pill.PAID { background: var(--true); color: var(--true-ink); }
+.pill.REFUNDED { background: var(--ink); color: var(--soft); border: 1px solid var(--line); }
+.rq { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; }
+.rq .st { flex: none; font: 700 10.5px var(--mono); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--soft); margin-top: 1px; }
+.rq .st.MET { color: var(--true); border-color: var(--true); }
+.rq .st.NOT_MET { color: var(--false); border-color: var(--false); }
+.meta { font-size: 12.5px; color: var(--soft); word-break: break-word; }
+.job .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.empty { color: var(--soft); font-size: 14px; padding: 6px 2px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="#" aria-label="Signoff home">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#132a22"/><path d="M17 33l10 10 20-22" fill="none" stroke="#36e39a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <b>SIGN<span>OFF</span></b>
+  </a>
+  <span class="chip" id="netLabel">Bradbury testnet</span>
+  <button class="btn sm" id="connectBtn" type="button">Connect wallet</button>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Pay when the work is <span>actually done.</span></h1>
+    <p>Signoff is a milestone escrow on GenLayer. Lock GEN with a checklist. The worker submits a link. Validators review the page, every "met" must quote the page itself, and the funds release only when every requirement is met. Miss the deadline and the client takes the funds back.</p>
+    <div class="addr" id="addrLine"></div>
+  </section>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="newTitle">
+      <h2 id="newTitle">New escrow (client)</h2>
+      <div><label for="jTitle">Title</label><input id="jTitle" maxlength="80" placeholder="Pocket Notes release"></div>
+      <div><label for="jReqs">Requirements: 1 to 6, one per line</label><textarea id="jReqs" placeholder="The app supports dark mode&#10;Users can export notes as CSV"></textarea></div>
+      <div><label for="jWorker">Worker address</label><input id="jWorker" class="mono" spellcheck="false" placeholder="0x…"></div>
+      <div class="two">
+        <div><label for="jAmount">Escrow (GEN)</label><input id="jAmount" inputmode="decimal" value="0.1"></div>
+        <div><label for="jDays">Deadline (days)</label><input id="jDays" inputmode="numeric" value="7"></div>
+      </div>
+      <div class="actions" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="jCreate" type="button">Lock funds</button>
+        <button class="btn ghost" id="jExample" type="button">Load the demo</button>
+      </div>
+      <p class="hint" style="margin:0">The worker must be a different wallet. Each job allows 3 reviews; after the deadline, or after 3 failed reviews, the client can reclaim.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="listTitle">
+      <h2 id="listTitle">Escrows on-chain <small class="num meta" id="count"></small></h2>
+      <ul class="jobs" id="jobs"><li class="empty">Loading…</li></ul>
+    </section>
+  </div>
+</div>
+
+<dialog id="wkDlg" aria-labelledby="wkTitle">
+  <form method="dialog" id="wkForm">
+    <div class="dlg-head"><h3 id="wkTitle">Submit work for review</h3><button class="close-x" value="cancel" formnovalidate aria-label="Close">&times;</button></div>
+    <div class="dlg-body">
+      <p id="wkJob" style="margin:0;font-weight:700"></p>
+      <div><label for="wkUrl">Deliverable link (https)</label><input type="url" id="wkUrl" required placeholder="https://…"></div>
+      <p class="hint">Validators read this page and judge each requirement. A requirement counts as met only with a quote that is really on the page.</p>
+      <div class="actions" style="justify-content:flex-start"><button class="btn" type="submit" value="default" id="wkSubmit">Send for review</button><button class="btn ghost" value="cancel" formnovalidate type="submit">Cancel</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="walletDlg" aria-labelledby="walletTitle">
+  <div class="dlg-head"><h3 id="walletTitle">Choose a wallet</h3><button class="close-x" type="button" data-cancel aria-label="Close">&times;</button></div>
+  <div class="dlg-body"><div id="walletList" class="wallet-list"></div><p class="hint">Pick the wallet that holds your Bradbury GEN.</p></div>
+</dialog>
+
+<div class="toasts" id="toasts" aria-live="assertive"></div>
+<div class="tray" id="tray" aria-live="polite"></div>
+
+<script type="module">
+const DEFAULT_CONTRACT = "";   // paste the deployed Signoff address here
+const DEFAULT_NETWORK = "testnetBradbury";
+const SDK_VERSION = "1.1.8";
+const params = new URLSearchParams(location.search);
+const NETWORK = params.get("network") || DEFAULT_NETWORK;
+let CONTRACT = params.get("contract") || DEFAULT_CONTRACT;
+/* ------------------------------------------------------------------ *
+ * SDK loading (two CDNs, pinned version)
+ * ------------------------------------------------------------------ */
+async function loadSdk() {
+  const sources = [
+    [`https://esm.sh/genlayer-js@${SDK_VERSION}`, `https://esm.sh/genlayer-js@${SDK_VERSION}/chains`],
+    [`https://cdn.jsdelivr.net/npm/genlayer-js@${SDK_VERSION}/+esm`, `https://cdn.jsdelivr.net/npm/genlayer-js@${SDK_VERSION}/dist/chains/index.js/+esm`],
+  ];
+  let lastErr;
+  for (const [main, chainsUrl] of sources) {
+    try {
+      const sdk = await import(main);
+      const chains = await import(chainsUrl);
+      return { sdk, chains };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+const state = {
+  sdk: null, chain: null, reader: null, writer: null, account: null,
+  cards: [], day: Math.floor(Date.now() / 86400000), player: null,
+};
+
+/* ------------------------------------------------------------------ *
+ * Helpers
+ * ------------------------------------------------------------------ */
+const $ = (id) => document.getElementById(id);
+function localGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function localSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const nowSec = () => Math.floor(Date.now() / 1000);
+const WEI = 10n ** 18n;
+
+function fmtGen(wei) {
+  const v = BigInt(wei || 0);
+  const whole = v / WEI;
+  const frac = (v % WEI).toString().padStart(18, "0").slice(0, 4).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : `${whole}`;
+}
+function parseGen(text) {
+  const t = String(text).trim();
+  if (!/^\d+(\.\d{1,18})?$/.test(t)) throw new Error("Enter an amount like 1 or 0.5");
+  const [w, f = ""] = t.split(".");
+  const wei = BigInt(w) * WEI + BigInt((f + "0".repeat(18)).slice(0, 18));
+  if (wei <= 0n) throw new Error("Amount must be more than 0");
+  return wei;
+}
+function fmtTime(ts) {
+  return new Date(ts * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function fmtIn(ts) {
+  const d = ts - nowSec();
+  const a = Math.abs(d);
+  const s = a < 3600 ? `${Math.max(1, Math.round(a / 60))} min` : a < 86400 ? `${Math.round(a / 3600)} h` : (Math.round(a / 86400) === 1 ? "1 day" : `${Math.round(a / 86400)} days`);
+  return d >= 0 ? `in ${s}` : `${s} ago`;
+}
+function short(a) { return a ? `${a.slice(0, 6)}…${a.slice(-4)}` : ""; }
+function toast(html, kind = "", ms = 7000) {
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.innerHTML = html;
+  $("toasts").appendChild(el);
+  if (ms) setTimeout(() => el.remove(), ms);
+  return el;
+}
+function explorerTx(hash) {
+  const base = state.chain?.blockExplorers?.default?.url;
+  return base ? `${base.replace(/\/$/, "")}/tx/${hash}` : null;
+}
+function errText(e) {
+  const m = e?.shortMessage || e?.details || e?.message || String(e);
+  return m.replace(/\[(EXPECTED|TRANSIENT|LLM_ERROR)\]\s*/g, "");
+}
+
+/* ------------------------------------------------------------------ *
+ * Chain access
+ * ------------------------------------------------------------------ */
+async function read(functionName, args = []) {
+  if (!CONTRACT) throw new Error("No contract address set");
+  return state.reader.readContract({ address: CONTRACT, functionName, args });
+}
+
+/* Wallet discovery (EIP-6963). Browsers like Brave inject their own wallet as
+ * window.ethereum, which can hide MetaMask; announced providers let us pick it. */
+const wallets = [];
+window.addEventListener("eip6963:announceProvider", (e) => {
+  const d = e.detail;
+  if (d?.provider && !wallets.some((w) => w.info.uuid === d.info.uuid)) wallets.push(d);
+});
+window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+const WALLET_KEY = "signoff.wallet";
+function walletChoices() {
+  const list = wallets.map((w) => ({ id: w.info.rdns || w.info.uuid, name: w.info.name, icon: w.info.icon, provider: w.provider }));
+  if (!list.length && window.ethereum) list.push({ id: "injected", name: window.ethereum.isOkxWallet ? "OKX Wallet" : window.ethereum.isMetaMask ? "MetaMask" : "Browser wallet", icon: "", provider: window.ethereum });
+  return list;
+}
+function chooseWallet(list) {
+  return new Promise((resolve) => {
+    const dlg = $("walletDlg");
+    $("walletList").innerHTML = list.map((w, i) => `<button class="wallet-opt" type="button" data-i="${i}">
+      ${w.icon ? `<img src="${esc(w.icon)}" alt="" width="28" height="28">` : `<span class="wallet-dot"></span>`}<span>${esc(w.name)}</span></button>`).join("");
+    const done = (v) => { dlg.close(); dlg.onclick = null; dlg.onclose = null; resolve(v); };
+    dlg.onclick = (e) => { const b = e.target.closest(".wallet-opt"); if (b) done(list[Number(b.dataset.i)]); else if (e.target.closest("[data-cancel]")) done(null); };
+    dlg.onclose = () => resolve(null);
+    dlg.showModal();
+  });
+}
+async function pickProvider() {
+  const list = walletChoices();
+  if (!list.length) return null;
+  if (list.length === 1) return list[0];
+  const saved = localGet(WALLET_KEY);
+  const remembered = list.find((w) => w.id === saved);
+  if (remembered) return remembered;
+  return chooseWallet(list);
+}
+
+async function ensureChain(eth) {
+  const c = state.chain;
+  const chainIdHex = "0x" + c.id.toString(16);
+  const current = await eth.request({ method: "eth_chainId" });
+  if (String(current).toLowerCase() === chainIdHex) return;
+  try {
+    await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
+  } catch (err) {
+    if (err?.code === 4001) throw err;
+    await eth.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: chainIdHex, chainName: c.name || "GenLayer Bradbury", rpcUrls: c.rpcUrls.default.http,
+        nativeCurrency: c.nativeCurrency || { name: "GEN", symbol: "GEN", decimals: 18 },
+        blockExplorerUrls: c.blockExplorers?.default?.url ? [c.blockExplorers.default.url] : undefined,
+      }],
+    });
+  }
+}
+
+async function connect() {
+  if (!state.chain) { toast("Still loading the GenLayer SDK, try again in a moment.", "err"); return; }
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  await new Promise((r) => setTimeout(r, 150));
+  const choice = await pickProvider();
+  if (!choice) { if (!walletChoices().length) toast("No browser wallet found. Install OKX Wallet or MetaMask, then reload this page.", "err"); return; }
+  const eth = choice.provider;
+  try {
+    const [acct] = await eth.request({ method: "eth_requestAccounts" });
+    if (!acct) throw new Error("The wallet returned no account. Unlock it and try again.");
+    await ensureChain(eth);
+    state.account = acct;
+    state.provider = eth;
+    localSet(WALLET_KEY, choice.id);
+    state.writer = state.sdk.createClient({ chain: state.chain, account: acct, provider: eth });
+    $("connectBtn").textContent = short(acct);
+    eth.on?.("accountsChanged", () => location.reload());
+    eth.on?.("chainChanged", () => location.reload());
+    onWallet();
+  } catch (e) {
+    console.error("connect failed", e);
+    const msg = e?.code === 4001 ? "You rejected the request in your wallet." :
+      e?.code === -32002 ? "Your wallet already has a request open. Open your wallet extension and approve it." : errText(e);
+    toast(`Wallet connection failed: ${esc(msg)}`, "err", 15000);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Validators-at-work tracker: every transaction gets a live card that
+ * follows its consensus stages, survives reloads, and never blocks the UI.
+ * ------------------------------------------------------------------ */
+const JOBS_KEY = "signoff.jobs";
+const jobs = new Map();               // hash -> job
+const stagesFor = (kind) => ["Signed in your wallet", "Waiting in the network queue",
+  "Leader validator reviews the deliverable",
+  "Other validators review it on their own", "Accepted, and the contract ran without error",
+  "Finalized after the appeal window"];
+const STAGE_OF = { PENDING: 1, UNINITIALIZED: 1, PROPOSING: 2, LEADER_REVEALING: 2, COMMITTING: 3, REVEALING: 3,
+  APPEAL_COMMITTING: 3, APPEAL_REVEALING: 3, ACCEPTED: 5, FINALIZED: 5, READY_TO_FINALIZE: 5 };
+const STATUS_BY_NUM = { 0: "UNINITIALIZED", 1: "PENDING", 2: "PROPOSING", 3: "COMMITTING", 4: "REVEALING", 5: "ACCEPTED",
+  6: "UNDETERMINED", 7: "FINALIZED", 8: "CANCELED", 9: "APPEAL_REVEALING", 10: "APPEAL_COMMITTING", 11: "READY_TO_FINALIZE",
+  12: "VALIDATORS_TIMEOUT", 13: "LEADER_TIMEOUT", 14: "LEADER_REVEALING" };
+const BAD = new Set(["UNDETERMINED", "CANCELED", "VALIDATORS_TIMEOUT", "LEADER_TIMEOUT"]);
+
+function saveJobs() {
+  const keep = [...jobs.values()].filter((j) => !j.final || (j.ok && !j.finalized)).map(({ hash, kind, title, fixture, args, started }) => ({ hash, kind, title, fixture, args, started }));
+  localSet(JOBS_KEY, JSON.stringify(keep));
+}
+function mmss(sec) { sec = Math.max(0, Math.floor(sec)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
+
+function drawJob(j) {
+  let el = document.getElementById(`job-${j.hash}`);
+  if (!el) {
+    el = document.createElement("div");
+    el.id = `job-${j.hash}`;
+    $("tray").prepend(el);
+  }
+  const link = explorerTx(j.hash);
+  const stage = j.final ? (j.ok ? (j.finalized ? 6 : 5) : j.stage) : j.stage;
+  const steps = stagesFor(j.kind).map((label, i) => {
+    let cls = i < stage ? "done" : i === stage && (!j.final || j.ok) ? "now" : "";
+    if (j.final && !j.ok && i === stage) cls = "bad";
+    return `<li class="${cls}">${label}</li>`;
+  }).join("");
+  const secs = ((j.ended || Date.now()) - j.started) / 1000;   // time to acceptance
+  const foot = j.final
+    ? (j.ok ? (j.finalized ? `Finalized. Accepted in ${mmss(((j.ended || Date.now()) - j.started) / 1000)}` : `Accepted in ${mmss(secs)}. Finalizing after the appeal window.`) : esc(j.error || "Not accepted"))
+    : (j.stage <= 1 && secs > 90 ? "Bradbury is busy. It runs after earlier transactions on this contract."
+      : esc(j.statusName ? j.statusName.replace(/_/g, " ").toLowerCase() : "waiting for the network"));
+  el.className = `job ${j.final ? (j.ok ? "ok" : "fail") : ""}${j.min ? " min" : ""}`;
+  el.innerHTML = `<div class="job-head"><b>${esc(j.title)}</b><span class="clock">${mmss(secs)}</span>
+      <button type="button" data-min="${j.hash}" aria-label="${j.min ? "Expand" : "Minimise"}">${j.min ? "+" : "–"}</button>
+      <button type="button" data-dismiss="${j.hash}" aria-label="Hide">&times;</button></div>
+    <ul class="steps">${steps}</ul>
+    <div class="job-foot"><span>${foot}</span>${link ? `<a href="${link}" target="_blank" rel="noopener">Explorer</a>` : ""}</div>`;
+}
+
+setInterval(() => { for (const j of jobs.values()) if (!j.final) drawJob(j); }, 1000);
+$("tray").addEventListener("click", (e) => {
+  const mn = e.target.closest("[data-min]");
+  if (mn) { const j = jobs.get(mn.dataset.min); if (j) { j.min = !j.min; drawJob(j); } return; }
+  const b = e.target.closest("[data-dismiss]");
+  if (!b) return;
+  const j = jobs.get(b.dataset.dismiss);
+  document.getElementById(`job-${b.dataset.dismiss}`)?.remove();
+  if (j?.final) jobs.delete(j.hash);
+});
+
+async function pollStage(j) {
+  while (!j.final) {
+    try {
+      const tx = await state.reader.getTransaction({ hash: j.hash });
+      const name = tx?.statusName || STATUS_BY_NUM[Number(tx?.status)] || String(tx?.status || "");
+      if (name) {
+        j.statusName = name;
+        if (STAGE_OF[name] != null) j.stage = Math.max(j.stage, Math.min(STAGE_OF[name], 4));
+      }
+      drawJob(j);
+    } catch (e) { /* transient RPC hiccup; keep going */ }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+
+function track(hash, meta) {
+  const j = { hash, stage: 1, final: false, ok: false, started: meta.started || Date.now(), ...meta };
+  jobs.set(hash, j);
+  saveJobs();
+  drawJob(j);
+  pollStage(j);
+  j.done = (async () => {
+    try {
+      const tx = await state.reader.waitForTransactionReceipt({ hash, waitUntil: "decided", interval: 3000, retries: 400 });
+      const name = tx?.statusName || STATUS_BY_NUM[Number(tx?.status)] || "";
+      const exec = String(tx?.txExecutionResultName || "");
+      // Success means consensus accepted it AND GenVM finished the contract call without an error.
+      const executed = exec ? exec === "FINISHED_WITH_RETURN" : (state.sdk.isSuccessful ? state.sdk.isSuccessful(tx) : true);
+      const ok = (name === "ACCEPTED" || name === "FINALIZED") && executed;
+      j.ok = ok;
+      j.finalized = name === "FINALIZED";
+      const why = BAD.has(name) ? name
+        : exec === "FINISHED_WITH_ERROR" ? "the contract rejected this call (nothing changed); check the inputs and try again"
+        : (exec || name || "not successful");
+      j.error = ok ? "" : `${why.replace(/_/g, " ").toLowerCase()}${name === "LEADER_TIMEOUT" ? ": the leader validator could not finish this round. Nothing was saved, so you can send it again" : ""}`;
+      return ok ? tx : null;
+    } catch (e) {
+      j.ok = false; j.error = errText(e);
+      return null;
+    } finally {
+      j.final = true; j.ended = Date.now();
+      saveJobs();
+      drawJob(j);
+      if (j.ok) {
+        setTimeout(() => { if (!j.finalized) { j.min = true; drawJob(j); } }, 12000);
+        watchFinality(j);
+      }
+      await onTxDone(j);
+    }
+  })();
+  return j;
+}
+
+async function watchFinality(j) {
+  // Accepted results can still be appealed; keep watching until the protocol finalizes them.
+  for (let n = 0; n < 240 && !j.finalized; n++) {
+    try {
+      const tx = await state.reader.getTransaction({ hash: j.hash });
+      const name = tx?.statusName || STATUS_BY_NUM[Number(tx?.status)] || "";
+      if (name === "FINALIZED") j.finalized = true;
+      else if (BAD.has(name) || name === "CANCELED") { j.ok = false; j.error = `changed to ${name.toLowerCase()} during the appeal window`; }
+    } catch { /* keep trying */ }
+    if (!j.finalized) await new Promise((r) => setTimeout(r, 15000));
+  }
+  saveJobs();
+  drawJob(j);
+  if (j.finalized) setTimeout(() => { document.getElementById(`job-${j.hash}`)?.remove(); jobs.delete(j.hash); saveJobs(); }, 15000);
+}
+
+function resumeJobs() {
+  let saved = [];
+  try { saved = JSON.parse(localGet(JOBS_KEY) || "[]"); } catch {}
+  for (const m of saved) if (m?.hash && Date.now() - m.started < 3 * 3600e3) track(m.hash, m);
+}
+
+async function send(functionName, args, { value, title, kind, fixture } = {}) {
+  if (!state.writer) { await connect(); if (!state.writer) return null; }
+  const write = { address: CONTRACT, functionName, args };
+  if (value != null) write.value = value;
+  try {
+    try {
+      const est = await state.writer.estimateTransactionFeesForWrite(write);
+      write.fees = { distribution: est.distribution, feeValue: est.feeValue };
+    } catch (e) {
+      console.warn("Fee estimate unavailable, sending without explicit fees", e);
+    }
+    const hash = await state.writer.writeContract(write);
+    return track(hash, { kind: kind || functionName, title: title || "Transaction", fixture, args: kind === "list" ? args.slice(0, 4) : undefined });
+  } catch (e) {
+    toast(esc(errText(e)), "err", 12000);
+    return null;
+  }
+}
+
+
+/* Signoff console */
+const DEMO = {
+  title: "Pocket Notes release",
+  reqs: ["The app supports dark mode on every screen", "Users can export notes as a CSV file"],
+};
+state.jobs = [];
+async function loadJobs() {
+  const all = [];
+  for (let off = 0; ; off += 50) {
+    const page = JSON.parse(await read("get_jobs", [off, 50]));
+    all.push(...page.jobs);
+    if (all.length >= page.total || !page.jobs.length) break;
+  }
+  state.jobs = all;
+}
+const gen = (wei) => fmtGen(BigInt(wei));
+function draw() {
+  const me = state.account?.toLowerCase();
+  const now = nowSec();
+  $("count").textContent = state.jobs.length ? `· ${state.jobs.length}` : "";
+  $("jobs").innerHTML = state.jobs.length ? [...state.jobs].reverse().map((j) => {
+    const lr = j.last_review;
+    const reqs = j.requirements.map((r, i) => `<div class="rq"><span class="st ${lr ? esc(lr.statuses[i]) : ""}">${lr ? esc(lr.statuses[i].replace("_", " ")) : "WAITING"}</span><span>${esc(r)}</span></div>`).join("");
+    const isWorker = me && me === j.worker, isClient = me && me === j.client;
+    const canWork = j.status === "OPEN" && isWorker && now <= j.deadline && j.attempts < 3;
+    const canReclaim = j.status === "OPEN" && isClient && (now > j.deadline || j.attempts >= 3);
+    const role = isClient ? " · you are the client" : isWorker ? " · you are the worker" : "";
+    return `<li class="job"><div class="row1"><span class="pill ${esc(j.status)}">${esc(j.status)}</span><b>${esc(j.title || "Untitled")}</b><span class="id">#${j.id}</span></div>
+      <div class="meta">${gen(j.amount)} GEN · worker ${esc(short(j.worker))} · ${j.status === "OPEN" ? (now > j.deadline ? "deadline passed" : `due ${fmtIn(j.deadline)}`) : "closed"} · reviews ${j.attempts}/3${role}</div>
+      ${reqs}
+      ${lr ? `<div class="meta">last review: <b>${esc(lr.decision)}</b>${lr.note ? ` · ${esc(lr.note)}` : ""} · <a href="${esc(lr.url)}" target="_blank" rel="noopener noreferrer">deliverable</a></div>` : ""}
+      ${canWork || canReclaim ? `<div class="acts">${canWork ? `<button class="btn sm" type="button" data-work="${j.id}">Submit work</button>` : ""}${canReclaim ? `<button class="btn ghost sm" type="button" data-reclaim="${j.id}">Reclaim funds</button>` : ""}</div>` : ""}</li>`;
+  }).join("") : `<li class="empty">No escrows yet.</li>`;
+}
+async function refreshList() {
+  if (!CONTRACT) { $("jobs").innerHTML = `<li class="empty">No contract set.</li>`; return; }
+  try { await loadJobs(); draw(); } catch (e) { $("jobs").innerHTML = `<li class="empty">Couldn't load escrows: ${esc(errText(e))}</li>`; }
+}
+function onWallet() { draw(); }
+async function onTxDone(j) {
+  if (j.ok && j.kind === "create") toast("Funds locked in escrow.", "ok");
+  if (j.ok && j.kind === "work") toast("Review finished. If every requirement was met, the funds were released.", "ok");
+  if (j.ok && j.kind === "reclaim") toast("Funds returned to the client.", "ok");
+  await refreshList();
+}
+
+$("jExample").addEventListener("click", () => { $("jTitle").value = DEMO.title; $("jReqs").value = DEMO.reqs.join("\n"); });
+$("jCreate").addEventListener("click", async () => {
+  const reqs = $("jReqs").value.split("\n").map((s) => s.trim()).filter(Boolean);
+  const worker = $("jWorker").value.trim();
+  const days = Number($("jDays").value);
+  let value;
+  try { value = parseGen($("jAmount").value); } catch { value = 0n; }
+  if (!reqs.length || reqs.length > 6) return toast("Give 1 to 6 requirements, one per line.", "err");
+  if (reqs.some((r) => r.length < 8 || r.length > 200)) return toast("Each requirement must be 8 to 200 characters.", "err");
+  if (!/^0x[0-9a-fA-F]{40}$/.test(worker)) return toast("Enter the worker's 0x address.", "err");
+  if (state.account && worker.toLowerCase() === state.account.toLowerCase()) return toast("The worker must be a different wallet from yours.", "err");
+  if (!(days >= 1 && days <= 60)) return toast("Deadline must be 1 to 60 days.", "err");
+  if (!value || value <= 0n) return toast("Enter an escrow amount above 0.", "err");
+  $("jCreate").disabled = true;
+  const job = await send("create_job", [$("jTitle").value.trim(), reqs.join("\n"), worker, Math.floor(days)], { kind: "create", value, title: `Lock ${fmtGen(value)} GEN` });
+  $("jCreate").disabled = false;
+  if (job) toast("Signed. The escrow is being created.", "ok");
+});
+let wkId = null;
+document.addEventListener("click", async (e) => {
+  const w = e.target.closest("[data-work]");
+  if (w) { wkId = Number(w.dataset.work); const j = state.jobs.find((x) => x.id === wkId); $("wkJob").textContent = j ? `#${j.id} ${j.title}` : ""; return $("wkDlg").showModal(); }
+  const r = e.target.closest("[data-reclaim]");
+  if (r) { r.disabled = true; await send("reclaim", [Number(r.dataset.reclaim)], { kind: "reclaim", title: `Reclaim escrow #${r.dataset.reclaim}` }); }
+});
+$("wkForm").addEventListener("submit", async (e) => {
+  if (e.submitter?.value === "cancel") return;
+  e.preventDefault();
+  const url = $("wkUrl").value.trim();
+  if (!url.startsWith("https://")) return toast("The deliverable must be an https:// link.", "err");
+  $("wkSubmit").disabled = true;
+  const job = await send("submit_work", [wkId, url], { kind: "work", title: `Review escrow #${wkId}` });
+  $("wkSubmit").disabled = false;
+  if (!job) return;
+  $("wkDlg").close(); $("wkForm").reset();
+});
+$("connectBtn").addEventListener("click", () => {
+  if (state.account) { localSet(WALLET_KEY, ""); state.account = null; state.writer = null; $("connectBtn").textContent = "Connect wallet"; draw(); }
+  connect();
+});
+(async function boot() {
+  $("addrLine").innerHTML = CONTRACT ? `Contract <a href="https://explorer-bradbury.genlayer.com/address/${esc(CONTRACT)}" target="_blank" rel="noopener">${esc(CONTRACT)}</a> on Bradbury` : "";
+  try {
+    const { sdk, chains } = await loadSdk();
+    state.chain = chains[NETWORK];
+    state.sdk = sdk;
+    state.reader = sdk.createClient({ chain: state.chain });
+  } catch (e) { $("jobs").innerHTML = `<li class="empty">Couldn't load the GenLayer SDK (${esc(errText(e))}).</li>`; return; }
+  await refreshList();
+  resumeJobs();
+  setInterval(() => { if (!document.hidden) refreshList(); }, 30000);
+})();
+</script>
+</body>
+</html>
