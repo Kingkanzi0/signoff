@@ -73,4 +73,7 @@ The demo uses three fixture pages in `demo/`: `v1.html` (dark mode only), `v2.ht
 | Item | Value |
 | --- | --- |
 | Network | Testnet Bradbury (chain 4221) |
-| Contract | _fill in after deploy_ |
+| Contract | `0x5c59656D094e403CBB82B73f7D95364D2F707B85` |
+| Deploy tx | `0xf0b9e8874139a7a551d80d09f291575cb86e88618308b7f741c7cbdd489855ff` |
+| Deploy result | ACCEPTED, validators AGREE, FINISHED_WITH_RETURN (13 Oct 2026) |
+| Explorer | https://explorer-bradbury.genlayer.com/address/0x5c59656D094e403CBB82B73f7D95364D2F707B85 |
