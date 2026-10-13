@@ -61,12 +61,14 @@ python3 tests/test_signoff.py
 
 The demo uses three fixture pages in `demo/`: `v1.html` (dark mode only), `v2.html` (dark mode and CSV export) and `injection.html` (a manipulation attempt). The checklist is "The app supports dark mode on every screen" and "Users can export notes as a CSV file".
 
+The pages were submitted through jsDelivr (`https://cdn.jsdelivr.net/gh/Kingkanzi0/signoff@main/demo/<file>.html`), which validators load reliably; GitHub Pages URLs failed to load inside GenVM on Bradbury.
+
 | Proof | Transaction |
 | --- | --- |
-| Escrow created, GEN locked | _fill in_ |
-| Injection page reviewed: REVISE, nothing paid | _fill in_ |
-| v1 reviewed: one requirement missing, REVISE | _fill in_ |
-| v2 reviewed: all met, RELEASE, escrow paid to the worker | _fill in_ |
+| Escrow created, GEN locked | [0x15b063c8…423c6df](https://explorer-bradbury.genlayer.com/tx/0x15b063c8ce4fe2f1677df4c133ec57cc25079df422dd3b0141569903f423c6df) |
+| Injection page reviewed: REVISE, nothing paid | [0xf4281699…e2b6fe](https://explorer-bradbury.genlayer.com/tx/0xf4281699f266943152b2e6f13a1882237e074189b73f14cc10188f4057e2b6fe) |
+| v1 reviewed: one requirement missing, REVISE | [0xd639630f…90bd5e](https://explorer-bradbury.genlayer.com/tx/0xd639630f78aaed68b9009a31791de179f8227c6e0c62475443f6e9e58c90bd5e) |
+| v2 reviewed: all met, RELEASE, escrow paid to the worker | [0x93388fb1…221dea](https://explorer-bradbury.genlayer.com/tx/0x93388fb111df79c5667f5e74f1b8dc78ce3f2236dffa88646701a3b48d221dea) |
 
 ## Deployment record
 
