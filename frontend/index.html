@@ -268,6 +268,7 @@ input:focus, textarea:focus { border-color: var(--gold); outline: none; }
 .meta { font-size: 12.5px; color: var(--soft); word-break: break-word; }
 .job .acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty { color: var(--soft); font-size: 14px; padding: 6px 2px; }
+.demo-pages { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 </style>
 </head>
 <body>
@@ -317,6 +318,10 @@ input:focus, textarea:focus { border-color: var(--gold); outline: none; }
     <div class="dlg-body">
       <p id="wkJob" style="margin:0;font-weight:700"></p>
       <div><label for="wkUrl">Deliverable link (https)</label><input type="url" id="wkUrl" required placeholder="https://…"></div>
+      <div class="demo-pages"><span class="hint" style="margin:0">Trying the demo? Use a ready-made page:</span>
+        <button class="btn ghost sm" type="button" data-demo="https://cdn.jsdelivr.net/gh/Kingkanzi0/signoff@main/demo/v2.html">Finished work</button>
+        <button class="btn ghost sm" type="button" data-demo="https://cdn.jsdelivr.net/gh/Kingkanzi0/signoff@main/demo/v1.html">Half done</button>
+        <button class="btn ghost sm" type="button" data-demo="https://cdn.jsdelivr.net/gh/Kingkanzi0/signoff@main/demo/injection.html">Trick page</button></div>
       <p class="hint">Validators read this page and judge each requirement. A requirement counts as met only with a quote that is really on the page.</p>
       <div class="actions" style="justify-content:flex-start"><button class="btn" type="submit" value="default" id="wkSubmit">Send for review</button><button class="btn ghost" value="cancel" formnovalidate type="submit">Cancel</button></div>
     </div>
@@ -691,6 +696,7 @@ function draw() {
       <div class="meta">${gen(j.amount)} GEN · worker ${esc(short(j.worker))} · ${j.status === "OPEN" ? (now > j.deadline ? "deadline passed" : `due ${fmtIn(j.deadline)}`) : "closed"} · reviews ${j.attempts}/3${role}</div>
       ${reqs}
       ${lr ? `<div class="meta">last review: <b>${esc(lr.decision)}</b>${lr.note ? ` · ${esc(lr.note)}` : ""} · <a href="${esc(lr.url)}" target="_blank" rel="noopener noreferrer">deliverable</a></div>` : ""}
+      ${isClient && j.status === "OPEN" && !canWork ? `<div class="meta">Waiting for the worker. To play both sides, switch your wallet to the worker account and refresh: a <b>Submit work</b> button appears.</div>` : ""}
       ${canWork || canReclaim ? `<div class="acts">${canWork ? `<button class="btn sm" type="button" data-work="${j.id}">Submit work</button>` : ""}${canReclaim ? `<button class="btn ghost sm" type="button" data-reclaim="${j.id}">Reclaim funds</button>` : ""}</div>` : ""}</li>`;
   }).join("") : `<li class="empty">No escrows yet.</li>`;
 }
@@ -726,6 +732,8 @@ $("jCreate").addEventListener("click", async () => {
 });
 let wkId = null;
 document.addEventListener("click", async (e) => {
+  const dm = e.target.closest("[data-demo]");
+  if (dm) { $("wkUrl").value = dm.dataset.demo; return; }
   const w = e.target.closest("[data-work]");
   if (w) { wkId = Number(w.dataset.work); const j = state.jobs.find((x) => x.id === wkId); $("wkJob").textContent = j ? `#${j.id} ${j.title}` : ""; return $("wkDlg").showModal(); }
   const r = e.target.closest("[data-reclaim]");
