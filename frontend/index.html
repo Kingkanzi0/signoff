@@ -351,15 +351,35 @@ async function loadSdk() {
     [`https://esm.sh/genlayer-js@${SDK_VERSION}`, `https://esm.sh/genlayer-js@${SDK_VERSION}/chains`],
     [`https://cdn.jsdelivr.net/npm/genlayer-js@${SDK_VERSION}/+esm`, `https://cdn.jsdelivr.net/npm/genlayer-js@${SDK_VERSION}/dist/chains/index.js/+esm`],
   ];
-  let lastErr;
-  for (const [main, chainsUrl] of sources) {
-    try {
-      const sdk = await import(main);
-      const chains = await import(chainsUrl);
-      return { sdk, chains };
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr;
+  // try every CDN at the same time and use whichever answers first; a slow or blocked CDN can't hang the page
+  const attempt = ([main, chainsUrl]) => withTimeout(Promise.all([import(main), import(chainsUrl)]), 12000)
+    .then(([sdk, chains]) => ({ sdk, chains }));
+  try { return await Promise.any(sources.map(attempt)); }
+  catch (e) { throw (e && e.errors && e.errors[0]) || e; }
+}
+function withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("the GenLayer SDK took too long to load")), ms))]);
+}
+let sdkPromise = null;
+// load once; on failure try once more
+function ensureSdk() {
+  if (state.chain) return Promise.resolve();
+  if (sdkPromise) return sdkPromise;
+  sdkPromise = (async () => {
+    let err;
+    for (let round = 0; round < 2; round++) {
+      try {
+        const { sdk, chains } = await loadSdk();
+        state.chain = chains[NETWORK];
+        state.sdk = sdk;
+        state.reader = sdk.createClient({ chain: state.chain });
+        return;
+      } catch (e) { err = e; await new Promise((r) => setTimeout(r, 1500 * (round + 1))); }
+    }
+    sdkPromise = null;   // allow a later click to try again
+    throw err;
+  })();
+  return sdkPromise;
 }
 
 const state = {
@@ -483,7 +503,15 @@ async function ensureChain(eth) {
 }
 
 async function connect() {
-  if (!state.chain) { toast("Still loading the GenLayer SDK, try again in a moment.", "err"); return; }
+  if (!state.chain) {
+    const btn = $("connectBtn"), label = btn.textContent;
+    btn.textContent = "Loading…"; btn.disabled = true;
+    try { await ensureSdk(); }
+    catch (e) {
+      toast(`Couldn't load the GenLayer SDK (${esc(errText(e))}). Check your internet connection; if you use Brave, turn Shields off for this page, then reload.`, "err", 14000);
+      return;
+    } finally { btn.textContent = label; btn.disabled = false; }
+  }
   window.dispatchEvent(new Event("eip6963:requestProvider"));
   await new Promise((r) => setTimeout(r, 150));
   const choice = await pickProvider();
@@ -756,12 +784,8 @@ $("connectBtn").addEventListener("click", () => {
 });
 (async function boot() {
   $("addrLine").innerHTML = CONTRACT ? `Contract <a href="https://explorer-bradbury.genlayer.com/address/${esc(CONTRACT)}" target="_blank" rel="noopener">${esc(CONTRACT)}</a> on Bradbury` : "";
-  try {
-    const { sdk, chains } = await loadSdk();
-    state.chain = chains[NETWORK];
-    state.sdk = sdk;
-    state.reader = sdk.createClient({ chain: state.chain });
-  } catch (e) { $("jobs").innerHTML = `<li class="empty">Couldn't load the GenLayer SDK (${esc(errText(e))}).</li>`; return; }
+  try { await ensureSdk(); }
+  catch (e) { $("jobs").innerHTML = `<li class="empty">Couldn't load the GenLayer SDK (${esc(errText(e))}). Check your connection (Brave users: turn Shields off for this page) and reload.</li>`; return; }
   await refreshList();
   resumeJobs();
   setInterval(() => { if (!document.hidden) refreshList(); }, 30000);
